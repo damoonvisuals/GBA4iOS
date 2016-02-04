@@ -42,7 +42,7 @@ static GBAEmulationViewController *_emulationViewController;
 @interface GBAEmulationViewController () <GBAControllerInputDelegate, UIViewControllerTransitioningDelegate, GBASaveStateViewControllerDelegate, GBACheatManagerViewControllerDelegate, GBASyncingDetailViewControllerDelegate, GBAEventDistributionViewControllerDelegate, GBAEmulatorCoreDelegate, GBAROMTableViewControllerAppearanceDelegate> {
     CFAbsoluteTime _romStartTime;
     CFAbsoluteTime _romPauseTime;
-    
+
     NSInteger _sustainButtonFrameCount;
     NSInteger _hideIntroAnimationFrameCount;
 }
@@ -107,72 +107,72 @@ static GBAEmulationViewController *_emulationViewController;
     if (self)
     {
         _launchingApplication = YES;
-        
+
         _emulationViewController = self;
-        
+
         [[GBAEmulatorCore sharedCore] setDelegate:self];
     }
-    
+
     return self;
 }
 
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    
+
 #if !(TARGET_IPHONE_SIMULATOR)
     self.emulatorScreen.backgroundColor = [UIColor blackColor]; // It's set to blue in the storyboard for easier visual debugging
 #endif
     self.controllerView.delegate = self;
-        
+
     if ([[UIScreen screens] count] > 1 && [[NSUserDefaults standardUserDefaults] boolForKey:GBASettingsAirPlayEnabledKey])
     {
         UIScreen *newScreen = [UIScreen screens][1];
         [self setUpAirplayScreen:newScreen];
     }
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(willResignActive:) name:UIApplicationWillResignActiveNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didEnterBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(willEnterForeground:) name:UIApplicationWillEnterForegroundNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateSettings:) name:GBASettingsDidChangeNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(userRequestedToPlayROM:) name:GBAUserRequestedToPlayROMNotification object:nil];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(romDidSaveData:) name:GBAROMDidSaveDataNotification object:nil];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hasNewDropboxSaveForCurrentGameFromDropbox:) name:GBAHasNewDropboxSaveForCurrentGameFromDropboxNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(shouldRestartCurrentGame:) name:GBAShouldRestartCurrentGameNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(syncManagerFinishedSync:) name:GBASyncManagerFinishedSyncNotification object:[GBASyncManager sharedManager]];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screenDidConnect:) name:UIScreenDidConnectNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screenDidDisconnect:) name:UIScreenDidDisconnectNotification object:nil];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidConnect:) name:GCControllerDidConnectNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidDisconnect:) name:GCControllerDidDisconnectNotification object:nil];
-    
+
     self.view.clipsToBounds = NO;
-    
+
     // This isn't for FPS, remember? Keep it here stupid, it's for sustain button
     self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(displayLinkDidUpdate:)];
 	[self.displayLink setFrameInterval:1];
 	[self.displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    
+
     [self updateFilter];
-    
+
     [self updateSettings:nil];
 }
 
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-    
+
     [self refreshLayout];
 }
 
 - (void)viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
-    
+
     if ([self isLaunchingApplication])
     {
         [self finishLaunchingApplication];
@@ -192,31 +192,31 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)finishLaunchingApplication
 {
     DLog(@"App did launch");
-    
+
     self.eventDistributionROMs = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"eventDistributionROMs" ofType:@"plist"]];
-    
-    if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
-    {
+
+//    if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
+//    {
         // Add to our view so we can animate it
         [self.view addSubview:self.splashScreenView];
-        
+
         self.romTableViewController = [[GBAROMTableViewController alloc] initWithNibName:nil bundle:nil];
         self.romTableViewController.appearanceDelegate = self;
         self.romTableViewController.view.layer.allowsGroupOpacity = YES;
-        
+
         UINavigationController *navigationController = RST_CONTAIN_IN_NAVIGATION_CONTROLLER(self.romTableViewController);
         navigationController.modalPresentationStyle = UIModalPresentationCustom;
         navigationController.transitioningDelegate = self;
-        
+
         [self presentViewController:navigationController animated:YES completion:^{
-            
+
             //self.romTableViewController.view.layer.allowsGroupOpacity = NO;
-            
+
             navigationController.transitioningDelegate = self;
-            
+
             [self.splashScreenView removeFromSuperview];
             self.splashScreenView = nil;
-            
+
             if (self.rom)
             {
                 GBAROM *rom = self.rom;
@@ -224,33 +224,33 @@ static GBAEmulationViewController *_emulationViewController;
                 [self.romTableViewController startROM:rom];
             }
         }];
-    }
-    else
-    {
-        self.romTableViewController = [(GBASplitViewController *)self.splitViewController romTableViewController];
-        [(GBASplitViewController *)self.splitViewController showROMTableViewControllerWithAnimation:NO];
-        
-        [UIView animateWithDuration:0.6 animations:^{
-            self.splashScreenView.alpha = 0.0;
-        } completion:^(BOOL finished) {
-            [self.splashScreenView removeFromSuperview];
-            self.splashScreenView = nil;
-            
-            if (self.rom)
-            {
-                GBAROM *rom = self.rom;
-                self.rom = nil;
-                [self.romTableViewController startROM:rom];
-            }
-        }];
-    }
-    
+//    }
+//    else
+//    {
+//        self.romTableViewController = [(GBASplitViewController *)self.splitViewController romTableViewController];
+//        [(GBASplitViewController *)self.splitViewController showROMTableViewControllerWithAnimation:NO];
+//
+//        [UIView animateWithDuration:0.6 animations:^{
+//            self.splashScreenView.alpha = 0.0;
+//        } completion:^(BOOL finished) {
+//            [self.splashScreenView removeFromSuperview];
+//            self.splashScreenView = nil;
+//
+//            if (self.rom)
+//            {
+//                GBAROM *rom = self.rom;
+//                self.rom = nil;
+//                [self.romTableViewController startROM:rom];
+//            }
+//        }];
+//    }
+
     self.pressedButtons = [NSMutableSet set];
-    
+
     [[[[UIApplication sharedApplication] delegate] window] bringSubviewToFront:self.splashScreenView];
-    
+
     self.romTableViewController.emulationViewController = self;
-    
+
     self.launchingApplication = NO;
 }
 
@@ -271,7 +271,7 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return YES;
     }
-    
+
     return YES;
 }
 
@@ -280,12 +280,12 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)showSplashScreen
 {
     CGRect bounds = [[UIScreen mainScreen] bounds];
-    
+
     // iOS 7 doesn't support using Nibs for Launch Screens
     if (![[UIScreen mainScreen] respondsToSelector:@selector(fixedCoordinateSpace)])
     {
         UIImageView *imageView = [[UIImageView alloc] init];
-        
+
         if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
         {
             if ([[UIScreen mainScreen] isWidescreen])
@@ -308,12 +308,12 @@ static GBAEmulationViewController *_emulationViewController;
                 imageView.image = [UIImage imageNamed:@"Default-Landscape"];
             }
         }
-        
+
         [imageView sizeToFit];
         imageView.center = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds)); // Make sure it is centered, so when it rotates it will line up
-        
+
         CGAffineTransform transform = CGAffineTransformIdentity;
-        
+
         if (UIInterfaceOrientationIsPortrait(self.interfaceOrientation))
         {
             if (self.interfaceOrientation == UIInterfaceOrientationPortrait)
@@ -336,22 +336,22 @@ static GBAEmulationViewController *_emulationViewController;
                 transform = CGAffineTransformMakeRotation(RADIANS(90.0f));
             }
         }
-        
+
         imageView.transform = transform;
-        
+
         self.splashScreenView = imageView;
     }
     else
     {
         UINib *splashScreenViewNib = [UINib nibWithNibName:@"Launch Screen" bundle:nil];
         NSArray *views = [splashScreenViewNib instantiateWithOwner:nil options:nil];
-        
+
         self.splashScreenView = [views firstObject];
         self.splashScreenView.frame = CGRectMake(0, 0, CGRectGetWidth(bounds), CGRectGetHeight(bounds));
-        
+
         self.splashScreenView.layer.allowsGroupOpacity = YES;
     }
-    
+
     UIWindow *window = [[[UIApplication sharedApplication] delegate] window];
     [window addSubview:self.splashScreenView];
 }
@@ -359,22 +359,22 @@ static GBAEmulationViewController *_emulationViewController;
 - (CGSize)screenSizeForContainerSize:(CGSize)containerSize
 {
     CGSize resolution = CGSizeZero;
-    
+
     switch (self.rom.type)
     {
         case GBAROMTypeGBA:
             resolution = CGSizeMake(240, 160);
             break;
-            
+
         case GBAROMTypeGBC:
             resolution = CGSizeMake(160, 144);
             break;
     }
-    
+
     CGSize size = resolution;
     CGFloat widthScale = containerSize.width/resolution.width;
     CGFloat heightScale = containerSize.height/resolution.height;
-    
+
     if (heightScale < widthScale)
     {
         // Use height scale to size to fit
@@ -385,7 +385,7 @@ static GBAEmulationViewController *_emulationViewController;
         // Use width scale to size to fit
         size = CGSizeMake(resolution.width * widthScale, resolution.height * widthScale);
     }
-    
+
     return CGSizeMake(roundf(size.width), roundf(size.height));
 }
 
@@ -394,9 +394,9 @@ static GBAEmulationViewController *_emulationViewController;
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
     NSString *skinsDirectory = [documentsDirectory stringByAppendingPathComponent:@"Skins"];
-    
+
     NSString *filepath = [skinsDirectory stringByAppendingPathComponent:identifier];
-    
+
     return filepath;
 }
 
@@ -404,7 +404,7 @@ static GBAEmulationViewController *_emulationViewController;
 {
     [self.pausedActionSheet dismissWithClickedButtonIndex:0 animated:YES];
     self.pausedActionSheet = nil;
-    
+
     if (self.selectingSustainedButton)
     {
         [self exitSustainButtonSelectionMode];
@@ -415,16 +415,16 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)displayLinkDidUpdate:(CADisplayLink *)displayLink
 {
     [self updateControllerInputs];
-    
+
     if (self.shouldHideIntroAnimation)
     {
         _hideIntroAnimationFrameCount++;
-        
+
         if (_hideIntroAnimationFrameCount > 1)
         {
             self.shouldHideIntroAnimation = NO;
             self.emulatorScreen.introAnimationLayer = nil;
-            
+
             _hideIntroAnimationFrameCount = 0;
         }
     }
@@ -435,29 +435,29 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)playIntroAnimation
 {
     self.playingIntroAnimation = YES;
-    
+
     AVPlayerItem *playerItem = [AVPlayerItem playerItemWithURL:[[NSBundle mainBundle] URLForResource:@"Intro" withExtension:@"mp4"]];
     AVPlayer *player = [AVPlayer playerWithPlayerItem:playerItem];
-    
+
     AVPlayerLayer *playerLayer = [AVPlayerLayer playerLayerWithPlayer:player];
     playerLayer.backgroundColor = [UIColor blackColor].CGColor;
     self.emulatorScreen.introAnimationLayer = playerLayer;
-    
+
     __block id observer = nil;
     observer = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemDidPlayToEndTimeNotification object:playerItem queue:nil usingBlock:^(NSNotification *notification) {
-        
+
         self.playingIntroAnimation = NO;
-        
+
         [self resumeEmulation];
-        
+
         // Delay until screen refresh so previous game is never seen
         self.shouldHideIntroAnimation = YES;
         _hideIntroAnimationFrameCount = 0;
-        
+
         [[NSNotificationCenter defaultCenter] removeObserver:observer name:AVPlayerItemDidPlayToEndTimeNotification object:playerItem];
-        
+
     }];
-    
+
     [player play];
 }
 
@@ -469,7 +469,7 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     UIScreen *newScreen = [notification object];
     [self setUpAirplayScreen:newScreen];
 }
@@ -480,7 +480,7 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     [self tearDownAirplayScreen];
 }
 
@@ -488,17 +488,17 @@ static GBAEmulationViewController *_emulationViewController;
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         CGRect screenBounds = screen.bounds;
-        
+
         self.airplayWindow = ({
             UIWindow *window = [[UIWindow alloc] initWithFrame:screenBounds];
             window.screen = screen;
             window.hidden = NO;
-                        
+
             [window addSubview:self.emulatorScreen];
-            
+
             window;
         });
-        
+
         NSLayoutConstraint *horizontalCenterConstraint = [NSLayoutConstraint constraintWithItem:self.emulatorScreen
                                                                                       attribute:NSLayoutAttributeCenterX
                                                                                       relatedBy:NSLayoutRelationEqual
@@ -506,7 +506,7 @@ static GBAEmulationViewController *_emulationViewController;
                                                                                       attribute:NSLayoutAttributeCenterX
                                                                                      multiplier:1.0f
                                                                                        constant:0.0f];
-        
+
         NSLayoutConstraint *landscapeCenterConstraint = [NSLayoutConstraint constraintWithItem:self.emulatorScreen
                                                                                      attribute:NSLayoutAttributeCenterY
                                                                                      relatedBy:NSLayoutRelationEqual
@@ -514,11 +514,11 @@ static GBAEmulationViewController *_emulationViewController;
                                                                                      attribute:NSLayoutAttributeCenterY
                                                                                     multiplier:1.0f
                                                                                       constant:0.0f];
-        
+
         [self.airplayWindow addConstraints:@[horizontalCenterConstraint, landscapeCenterConstraint]];
-        
+
         [self.emulatorScreen invalidateIntrinsicContentSize];
-        
+
         [self refreshLayout];
     });
 }
@@ -526,10 +526,10 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)tearDownAirplayScreen
 {
     self.airplayWindow.hidden = YES;
-    
+
     [self.screenContainerView addSubview:self.emulatorScreen];
     self.airplayWindow = nil;
-    
+
     [self refreshLayout];
 }
 
@@ -541,18 +541,18 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     GCController *controller = notification.object;
     [controller setPlayerIndex:GCControllerPlayerIndex1];
-    
+
     self.externalController = [GBAExternalController externalControllerWithController:controller];
     self.externalController.delegate = self;
-    
+
     if (self.selectingSustainedButton)
     {
         return;
     }
-    
+
     // Can lead to incorrect layout if there isn't a ROM loaded
     if (self.rom)
     {
@@ -566,14 +566,14 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     self.externalController = nil;
-    
+
     if (self.selectingSustainedButton)
     {
         return;
     }
-    
+
     // Can lead to incorrect layout if there isn't a ROM loaded
     if (self.rom)
     {
@@ -587,12 +587,12 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     // Sustain Button
     if ([buttons containsObject:@(GBAControllerButtonSustainButton)])
     {
         [self pauseEmulation];
-        
+
         if (self.selectingSustainedButton)
         {
             [self sustainButtons:nil];
@@ -601,55 +601,55 @@ static GBAEmulationViewController *_emulationViewController;
         {
             [self enterSustainButtonSelectionMode];
         }
-        
+
         return;
     }
-    
+
     // Allow sustaining fast forward button
     if (self.selectingSustainedButton)
     {
         [self sustainButtons:buttons];
     }
-    
+
     [self.pressedButtons unionSet:buttons];
-    
+
     if (self.rom.type == GBAROMTypeGBC && [self isPlayingIntroAnimation])
     {
         [self updateColorPaletteForPressedButtons:self.pressedButtons];
     }
-    
+
     if ([buttons containsObject:@(GBAControllerButtonFastForward)])
     {
         // Stop fast forwarding on when finished pressing button
         [self startFastForwarding];
-        
+
         return;
     }
-    
+
     // If selecting sustain button, nothing else in this method is relevant
     if (self.selectingSustainedButton)
     {
         return;
     }
-    
-    
+
+
     if ([self.sustainedButtonSet intersectsSet:buttons]) // We re-pressed a sustained button, so we need to release it then press it in the next emulation CPU cycle
     {
         if ([buttons count] == 0)
         {
             return;
         }
-        
+
         NSMutableSet *sustainedButtons = [self.sustainedButtonSet mutableCopy];
         [sustainedButtons intersectSet:buttons];
-        
+
         [[GBAEmulatorCore sharedCore] releaseButtons:sustainedButtons];
-        
+
         NSMutableSet *buttonsWithoutSustainButtons = [buttons mutableCopy];
         [buttonsWithoutSustainButtons minusSet:self.sustainedButtonSet];
-        
+
         self.buttonsToPressForNextCycle = buttons;
-        
+
         _sustainButtonFrameCount = 0;
     }
     else
@@ -658,7 +658,7 @@ static GBAEmulationViewController *_emulationViewController;
         {
             return;
         }
-        
+
         [[GBAEmulatorCore sharedCore] pressButtons:buttons];
     }
 }
@@ -671,32 +671,32 @@ static GBAEmulationViewController *_emulationViewController;
         // Do nothing
         return;
     }
-    
+
     [self.pressedButtons minusSet:buttons];
-    
+
     if (self.rom.type == GBAROMTypeGBC && [self isPlayingIntroAnimation])
     {
         [self updateColorPaletteForPressedButtons:self.pressedButtons];
     }
-    
+
     if ([buttons containsObject:@(GBAControllerButtonFastForward)])
     {
         if (![self.sustainedButtonSet containsObject:@(GBAControllerButtonFastForward)])
         {
             [self stopFastForwarding];
         }
-        
+
         return;
     }
-    
+
     if (self.sustainedButtonSet)
     {
         NSMutableSet *set = [buttons mutableCopy];
         [set minusSet:self.sustainedButtonSet];
         buttons = set;
     }
-    
-    
+
+
     [[GBAEmulatorCore sharedCore] releaseButtons:buttons];
 }
 
@@ -705,32 +705,32 @@ static GBAEmulationViewController *_emulationViewController;
     if (self.buttonsToPressForNextCycle)
     {
         _sustainButtonFrameCount++;
-        
+
         if (_sustainButtonFrameCount > 1)
         {
             _sustainButtonFrameCount = 0;
-            
+
             [[GBAEmulatorCore sharedCore] pressButtons:self.buttonsToPressForNextCycle];
-            
+
             self.buttonsToPressForNextCycle = nil;
         }
     }
-    
+
 #ifdef USE_POLLING
     if (self.externalController == nil)
     {
         return;
     }
-    
+
     [self.externalController updateControllerInputs];
-    
+
 #endif
 }
 
 - (void)updateColorPaletteForPressedButtons:(NSSet *)pressedButtons
 {
     GBCColorPalette overrideColorPalette = (GBCColorPalette)[[NSUserDefaults standardUserDefaults] integerForKey:GBASettingsSelectedColorPaletteKey];
-    
+
     if ([pressedButtons isEqualToSet:[NSSet setWithObject:@(GBAControllerButtonUp)]])
     {
         overrideColorPalette = GBCColorPaletteBrown;
@@ -791,37 +791,37 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     if (self.pausedActionSheet)
     {
         [self.pausedActionSheet dismissWithClickedButtonIndex:0 animated:YES];
         [self resumeEmulation];
         self.pausedActionSheet = nil;
-        
+
         return;
     }
-    
+
     if (self.selectingSustainedButton)
     {
         [self sustainButtons:nil];
         return;
     }
-    
+
     _romPauseTime = CFAbsoluteTimeGetCurrent();
 
     if (![[GBALinkManager sharedManager] isLinkConnected])
     {
         [self pauseEmulation];
     }
-    
-    
+
+
     if ([self usingGyroscope] && ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad || [UIAlertController class]))
     {
         [UIViewController attemptRotationToDeviceOrientation];
     }
-    
+
     NSString *pauseMenuTitle = nil;
-    
+
     if ([[GBALinkManager sharedManager] isLinkConnected])
     {
         pauseMenuTitle = NSLocalizedString(@"When Wireless Link is connected, the game cannot be paused.", @"");
@@ -830,10 +830,10 @@ static GBAEmulationViewController *_emulationViewController;
     {
         pauseMenuTitle = NSLocalizedString(@"Paused", @"");
     }
-    
-    
+
+
     NSString *returnToMenuButtonTitle = nil;
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         returnToMenuButtonTitle = NSLocalizedString(@"Show Game List", @"");
@@ -842,10 +842,10 @@ static GBAEmulationViewController *_emulationViewController;
     {
         returnToMenuButtonTitle = NSLocalizedString(@"Return To Menu", @"");
     }
-    
-    
+
+
     NSString *fastForwardButtonTitle = nil;
-    
+
     if (self.fastForwarding)
     {
         fastForwardButtonTitle = NSLocalizedString(@"Normal Speed", @"");
@@ -854,9 +854,9 @@ static GBAEmulationViewController *_emulationViewController;
     {
         fastForwardButtonTitle = NSLocalizedString(@"Fast Forward", @"");
     }
-    
+
     BOOL eventDistributionCapableROM = ([self.eventDistributionROMs objectForKey:self.rom.uniqueName] != nil);
-    
+
     // iOS 7 has trouble adding buttons to UIActionSheet after it's created, so we just create a different action sheet depending on hardware and situation
     if ([self.rom event])
     {
@@ -924,7 +924,7 @@ static GBAEmulationViewController *_emulationViewController;
         else if (self.usingGyroscope && [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone && ![UIAlertController class])
         {
             // Only show on iOS 7 iPhones. iPads and iOS 8 iPhones don't need Rotate To Device Orientation Button
-            
+
             if ([self numberOfCPUCoresForCurrentDevice] == 1)
             {
                 self.pausedActionSheet = [[UIActionSheet alloc] initWithTitle:pauseMenuTitle
@@ -981,20 +981,20 @@ static GBAEmulationViewController *_emulationViewController;
                                           NSLocalizedString(@"Sustain Button", @""), nil];
             }
         }
-        
+
     }
-    
+
     __block BOOL alreadyHandledActionSheetCallback = NO; // Eww eww eww hack because iOS 8 calls UIActionSheet delegate method twice
-    
+
     void (^selectionHandler)(UIActionSheet *actionSheet, NSInteger buttonIndex) = ^(UIActionSheet *actionSheet, NSInteger buttonIndex) {
-        
+
         if (alreadyHandledActionSheetCallback)
         {
             return;
         }
-        
+
         alreadyHandledActionSheetCallback = YES;
-        
+
         if (buttonIndex == 0)
         {
             if ([self.rom event])
@@ -1026,7 +1026,7 @@ static GBAEmulationViewController *_emulationViewController;
                     if (buttonIndex == 1)
                     {
                         [self pauseEmulation];
-                        
+
                         [[GBASyncManager sharedManager] setShouldShowSyncingStatus:YES];
                         [self returnToROMTableViewController];
                     }
@@ -1039,12 +1039,12 @@ static GBAEmulationViewController *_emulationViewController;
             else
             {
                 [[GBASyncManager sharedManager] setShouldShowSyncingStatus:YES];
-                
+
                 [self returnToROMTableViewController];
             }
         }
         else {
-            
+
             if ([[GBALinkManager sharedManager] isLinkConnected] && ![self.rom event])
             {
                 // Compensate for lack of Fast Forward, Save State, Load State, and Cheat Codes buttons
@@ -1053,21 +1053,21 @@ static GBAEmulationViewController *_emulationViewController;
             else
             {
                 // Even if link is connected, Event Distribution menu has priority. Otherwise this is just for non-link connected menus
-                
+
                 if ([self numberOfCPUCoresForCurrentDevice] == 1)
                 {
                     // Compensate for lack of Fast Forward button
                     buttonIndex = buttonIndex + 1;
                 }
-                
+
                 if ([self.rom event] && buttonIndex > 1)
                 {
                     // We hide Save State, Load State, and Cheat Codes
                     buttonIndex = buttonIndex + 3;
                 }
             }
-            
-            
+
+
             if (buttonIndex == 1)
             {
                 if ([self isFastForwarding])
@@ -1078,7 +1078,7 @@ static GBAEmulationViewController *_emulationViewController;
                 {
                     [self startFastForwarding];
                 }
-                
+
                 [self resumeEmulation];
             }
             else if (buttonIndex == 2)
@@ -1117,7 +1117,7 @@ static GBAEmulationViewController *_emulationViewController;
                 else if (self.usingGyroscope && [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone && ![UIAlertController class])
                 {
                     // Only needed on iOS 7 iPhones. iPads and iOS 8 iPhones don't need Rotate To Device Orientation Button
-                    
+
                     self.shouldResumeEmulationAfterRotatingInterface = YES;
                     [UIViewController attemptRotationToDeviceOrientation];
                 }
@@ -1127,44 +1127,44 @@ static GBAEmulationViewController *_emulationViewController;
                 }
             }
             else
-            {                
+            {
                 [self resumeEmulation];
             }
         }
-        
+
         self.pausedActionSheet = nil;
     };
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
     {
         [self.pausedActionSheet showInView:self.view selectionHandler:selectionHandler];
-        
+
         return;
     }
-    
+
     if ([self isExternalControllerConnected])
     {
         [self.pausedActionSheet showInView:self.view selectionHandler:selectionHandler];
-        
+
         return;
     }
-    
+
     // Below code used in didRotateFromInterfaceOrientation as well, except without the selectionHandler
-    
+
     CGRect rect = [self.controllerView.controllerSkin frameForMapping:GBAControllerSkinMappingMenu orientation:self.controllerView.orientation controllerDisplaySize:self.view.window.bounds.size useExtendedEdges:NO];
-    
+
     CGRect convertedRect = [self.view convertRect:rect fromView:self.controllerView];
-    
+
     CGFloat middleSectionStart = CGRectGetWidth(self.view.bounds) * (1.0/3.0);
     CGFloat middleSectionEnd = CGRectGetWidth(self.view.bounds) * (2.0/3.0);
-    
+
     // Button is in the middle third of the screen, so we make sure it centers the popup instead of putting it off to the side like normal
     if (CGRectGetMidX(convertedRect) > middleSectionStart && CGRectGetMidX(convertedRect) < middleSectionEnd)
     {
         convertedRect.origin.x = 0;
         convertedRect.size.width = self.controllerView.bounds.size.width;
     }
-    
+
     [self.pausedActionSheet showFromRect:convertedRect inView:self.view animated:YES selectionHandler:selectionHandler];
 }
 
@@ -1172,10 +1172,10 @@ static GBAEmulationViewController *_emulationViewController;
 {
     size_t len;
     unsigned int ncpu;
-    
+
     len = sizeof(ncpu);
     sysctlbyname ("hw.ncpu",&ncpu,&len,NULL,0);
-    
+
     return ncpu;
 }
 
@@ -1185,40 +1185,40 @@ static GBAEmulationViewController *_emulationViewController;
 {
     self.selectingSustainedButton = YES;
     self.interfaceOrientationLocked = YES;
-    
+
     if (self.emulatorScreen.eaglView == nil)
     {
         return;
     }
-    
+
     self.sustainButtonBlurredContentsImageView = ({
         UIImageView *imageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), CGRectGetHeight(self.view.bounds))];
         imageView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
         imageView.alpha = 0.0;
-        
+
         UIImage *image = [self blurredViewImageForInterfaceOrientation:self.interfaceOrientation drawController:NO];
         imageView.image = image;
-        
+
         [self.view insertSubview:imageView belowSubview:self.controllerView];
-        
+
         imageView;
     });
-    
+
     BOOL screenRectEmpty = NO;
     CGRect screenRect = [self.controllerView.controllerSkin frameForMapping:GBAControllerSkinMappingScreen orientation:self.controllerView.orientation controllerDisplaySize:self.view.window.bounds.size];
-    
+
     if (CGRectIsEmpty(screenRect))
     {
         screenRectEmpty = YES;
         screenRect = self.screenContainerView.frame;
     }
-    
+
     UILabel *instructionsLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, CGRectGetWidth(screenRect) - 20.0f, CGRectGetHeight(screenRect) - 20.0f)];
     instructionsLabel.minimumScaleFactor = 0.5;
     instructionsLabel.numberOfLines = 0.0;
     instructionsLabel.lineBreakMode = NSLineBreakByWordWrapping;
     instructionsLabel.textAlignment = NSTextAlignmentCenter;
-    
+
     if (self.externalController)
     {
         instructionsLabel.text = NSLocalizedString(@"Press the button you want to sustain.\n\nTo cancel or unsustain a previously sustained button, either tap the screen or press the Menu button.", @"");
@@ -1227,11 +1227,11 @@ static GBAEmulationViewController *_emulationViewController;
     {
         instructionsLabel.text = NSLocalizedString(@"Tap the button you want to sustain.\n\nTo cancel or unsustain a previously sustained button, tap anywhere there isn't a button.", @"");
     }
-    
+
     instructionsLabel.textColor = [UIColor whiteColor];
-    
+
     instructionsLabel.center = CGPointMake(CGRectGetMidX(screenRect), CGRectGetMidY(screenRect));
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone && self.controllerView.orientation == GBAControllerSkinOrientationLandscape)
     {
         if (screenRectEmpty && self.externalController == nil) // With external controller, we want it to be centered
@@ -1243,13 +1243,13 @@ static GBAEmulationViewController *_emulationViewController;
             });
         }
     }
-    
+
     [self.sustainButtonBlurredContentsImageView addSubview:instructionsLabel];
-    
+
     [UIView animateWithDuration:0.3 animations:^{
         [self.sustainButtonBlurredContentsImageView setAlpha:1.0f];
     }];
-    
+
 }
 
 - (void)exitSustainButtonSelectionMode
@@ -1260,15 +1260,15 @@ static GBAEmulationViewController *_emulationViewController;
         self.interfaceOrientationLocked = NO;
         [self.sustainButtonBlurredContentsImageView removeFromSuperview];
         self.sustainButtonBlurredContentsImageView = nil;
-        
+
         [UIViewController attemptRotationToDeviceOrientation];
     }];
-    
+
     self.selectingSustainedButton = NO;
-    
+
     [self updateControllerSkinForInterfaceOrientation:self.interfaceOrientation];
     [self updateEmulatorScreenFrame]; // In case user connected/disconnected external controller
-    
+
     [self resumeEmulation];
 }
 
@@ -1276,12 +1276,12 @@ static GBAEmulationViewController *_emulationViewController;
 {
     // Release previous sustained buttons
     [[GBAEmulatorCore sharedCore] releaseButtons:self.sustainedButtonSet];
-    
+
     if ([self.sustainedButtonSet containsObject:@(GBAControllerButtonFastForward)])
     {
         [self stopFastForwarding];
     }
-    
+
     self.sustainedButtonSet = [buttons mutableCopy];
     [self exitSustainButtonSelectionMode];
 }
@@ -1299,14 +1299,14 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)startFastForwarding
 {
     self.fastForwarding = YES;
-    
+
     [[GBAEmulatorCore sharedCore] startFastForwarding];
 }
 
 - (void)stopFastForwarding
 {
     self.fastForwarding = NO;
-    
+
     [[GBAEmulatorCore sharedCore] stopFastForwarding];
 }
 
@@ -1316,9 +1316,9 @@ static GBAEmulationViewController *_emulationViewController;
 {
     GBASaveStateViewController *saveStateViewController = [[GBASaveStateViewController alloc] initWithROM:self.rom mode:mode];
     saveStateViewController.delegate = self;
-    
+
     GBAKeyboardDismissalNavigationController *navigationController = [[GBAKeyboardDismissalNavigationController alloc] initWithRootViewController:saveStateViewController];
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
     {
         saveStateViewController.theme = GBAThemedTableViewControllerThemeTranslucent;
@@ -1330,7 +1330,7 @@ static GBAEmulationViewController *_emulationViewController;
         saveStateViewController.theme = GBAThemedTableViewControllerThemeOpaque;
         navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
     }
-    
+
     if ([UIAlertController class] && [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) // iOS 8 beta 3 glitch: can't present while UIActionController is dismissing
     {
         [self dismissViewControllerAnimated:YES completion:^{
@@ -1343,7 +1343,7 @@ static GBAEmulationViewController *_emulationViewController;
         [self presentViewController:navigationController animated:YES completion:nil];
         [self prepareForPresentingTranslucentViewController];
     }
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:NO];
 }
 
@@ -1369,10 +1369,10 @@ static GBAEmulationViewController *_emulationViewController;
     {
         NSString *autosaveFilepath = [[self saveStateDirectory] stringByAppendingPathComponent:@"autosave.sgm"];
         NSString *backupFilepath = [[self saveStateDirectory] stringByAppendingPathComponent:@"backup.sgm"];
-        
+
         [[NSFileManager defaultManager] replaceItemAtURL:[NSURL fileURLWithPath:autosaveFilepath] withItemAtURL:[NSURL fileURLWithPath:backupFilepath] backupItemName:nil options:NSFileManagerItemReplacementUsingNewMetadataOnly resultingItemURL:nil error:nil];
     }
-    
+
     [[GBAEmulatorCore sharedCore] updateCheats];
 }
 
@@ -1414,12 +1414,12 @@ static GBAEmulationViewController *_emulationViewController;
 {
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = ([paths count] > 0) ? [paths objectAtIndex:0] : nil;
-    
+
     NSString *saveStateParentDirectory = [documentsDirectory stringByAppendingPathComponent:@"Save States"];
     NSString *saveStateDirectory = [saveStateParentDirectory stringByAppendingPathComponent:self.rom.name];
-    
+
     [[NSFileManager defaultManager] createDirectoryAtPath:saveStateDirectory withIntermediateDirectories:YES attributes:nil error:nil];
-    
+
     return saveStateDirectory;
 }
 
@@ -1429,9 +1429,9 @@ static GBAEmulationViewController *_emulationViewController;
 {
     GBACheatManagerViewController *cheatManagerViewController = [[GBACheatManagerViewController alloc] initWithROM:self.rom];
     cheatManagerViewController.delegate = self;
-    
+
     UINavigationController *navigationController = RST_CONTAIN_IN_NAVIGATION_CONTROLLER(cheatManagerViewController);
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
     {
         cheatManagerViewController.theme = GBAThemedTableViewControllerThemeTranslucent;
@@ -1443,7 +1443,7 @@ static GBAEmulationViewController *_emulationViewController;
         cheatManagerViewController.theme = GBAThemedTableViewControllerThemeOpaque;
         navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
     }
-    
+
     if ([UIAlertController class] && [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) // iOS 8 beta 3 glitch: can't present while UIActionController is dismissing
     {
         [self dismissViewControllerAnimated:YES completion:^{
@@ -1456,7 +1456,7 @@ static GBAEmulationViewController *_emulationViewController;
         [self presentViewController:navigationController animated:YES completion:nil];
         [self prepareForPresentingTranslucentViewController];
     }
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:NO];
 }
 
@@ -1468,7 +1468,7 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)cheatManagerViewControllerWillDismiss:(GBACheatManagerViewController *)cheatManagerViewController
 {
     [self resumeEmulation];
-    
+
     [self prepareForDismissingTranslucentViewController];
 }
 
@@ -1480,18 +1480,18 @@ static GBAEmulationViewController *_emulationViewController;
     {
         [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:UIStatusBarAnimationFade];
     }
-    
+
     GBAEventDistributionViewController *eventDistributionViewController = [[GBAEventDistributionViewController alloc] initWithROM:self.rom];
     eventDistributionViewController.delegate = self;
     eventDistributionViewController.emulationViewController = self;
-    
+
     UINavigationController *navigationController = RST_CONTAIN_IN_NAVIGATION_CONTROLLER(eventDistributionViewController);
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
     }
-    
+
     if ([UIAlertController class] && [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) // iOS 8 beta 3 glitch: can't present while UIActionController is dismissing
     {
         [self dismissViewControllerAnimated:YES completion:^{
@@ -1504,7 +1504,7 @@ static GBAEmulationViewController *_emulationViewController;
         [self presentViewController:navigationController animated:YES completion:nil];
         [self prepareForPresentingTranslucentViewController];
     }
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:NO];
 }
 
@@ -1514,18 +1514,18 @@ static GBAEmulationViewController *_emulationViewController;
     {
         [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:UIStatusBarAnimationFade];
     }
-    
+
     UINavigationController *navigationController = RST_CONTAIN_IN_NAVIGATION_CONTROLLER(self.eventDistributionViewController);
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
     }
-    
+
     [self presentViewController:navigationController animated:YES completion:nil];
-    
+
     [self prepareForPresentingTranslucentViewController];
-    
+
     [self.eventDistributionViewController finishCurrentEvent];
 }
 
@@ -1542,11 +1542,11 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)eventDistributionViewControllerWillDismiss:(GBAEventDistributionViewController *)eventDistributionViewController
 {
     [self refreshLayout];
-    
+
     [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationFade];
-    
+
     [self resumeEmulation];
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         [UIView animateWithDuration:0.4 animations:^{
@@ -1562,9 +1562,9 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)emulatorCore:(GBAEmulatorCore *)emulatorCore didEnableGyroscopeForROM:(GBAROM *)rom
 {
     self.usingGyroscope = YES;
-    
+
     NSString *key = nil;
-    
+
     if ([UIAlertController class])
     {
         // On iOS 8, both iPad and iPhone can automatically rotate to a new orientation when paused, so no need to differentiate
@@ -1582,17 +1582,17 @@ static GBAEmulationViewController *_emulationViewController;
             key = @"presentediPadGyroscopeAlert";
         }
     }
-    
+
     NSInteger alertPresentationCount = [[NSUserDefaults standardUserDefaults] integerForKey:key];
-    
+
     if (alertPresentationCount < 3)
     {
         self.showingGyroscopeAlert = YES;
-        
+
         [self pauseEmulation];
-        
+
         NSString *message = nil;
-        
+
         // On iOS 8+, or iPads, you don't have to manually tap "Rotate To Device Orientation". On iOS 7 iPhones, you do
         if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad || [UIAlertController class])
         {
@@ -1602,22 +1602,22 @@ static GBAEmulationViewController *_emulationViewController;
         {
             message = NSLocalizedString(@"To prevent GBA4iOS from rotating between portrait and landscape accidentally, automatic rotation has been disabled. To manually rotate to the device orientation, pause the game, then tap “Rotate To Device Orientation”.", @"");
         }
-        
+
         dispatch_async(dispatch_get_main_queue(), ^{
-            
+
             self.emulatorScreen.hidden = YES; // Hide it in case a previous ROM is loaded, since it will pause on the last game screen
-            
+
             UIAlertView *alert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Game Uses Gyroscope", @"")
                                                             message:message
                                                            delegate:nil cancelButtonTitle:NSLocalizedString(@"OK", @"") otherButtonTitles:nil];
             [alert showWithSelectionHandler:^(UIAlertView *alertView, NSInteger buttonIndex) {
                 self.showingGyroscopeAlert = NO;
                 [self resumeEmulation];
-                
+
                 self.emulatorScreen.hidden = NO;
             }];
         });
-        
+
         alertPresentationCount++;
         [[NSUserDefaults standardUserDefaults] setInteger:alertPresentationCount forKey:key];
         [[NSUserDefaults standardUserDefaults] synchronize];
@@ -1627,9 +1627,9 @@ static GBAEmulationViewController *_emulationViewController;
 #pragma mark - Settings
 
 - (void)updateSettings:(NSNotification *)notification
-{    
+{
     BOOL translucent = [self.controllerView.controllerSkin isTranslucentForOrientation:self.controllerView.orientation];
-    
+
     if (translucent)
     {
         self.controllerView.skinOpacity = [[NSUserDefaults standardUserDefaults] floatForKey:GBASettingsControllerOpacityKey];
@@ -1638,7 +1638,7 @@ static GBAEmulationViewController *_emulationViewController;
     {
         self.controllerView.skinOpacity = 1.0f;
     }
-    
+
     if ([[NSUserDefaults standardUserDefaults] boolForKey:GBASettingsAirPlayEnabledKey])
     {
         if (![self isAirplaying] && [[UIScreen screens] count] > 1)
@@ -1664,11 +1664,11 @@ static GBAEmulationViewController *_emulationViewController;
     {
         [self updateAutosaveState];
     }
-    
+
     // Saves when pausing the game
-    
+
     [[GBASyncManager sharedManager] synchronize];
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
     {
         UINavigationController *navigationController = RST_CONTAIN_IN_NAVIGATION_CONTROLLER(self.romTableViewController);
@@ -1680,22 +1680,28 @@ static GBAEmulationViewController *_emulationViewController;
     else
     {
         [(GBASplitViewController *)self.splitViewController showROMTableViewControllerWithAnimation:YES];
+        // @todo
+        // self.romTableViewController = [[GBAROMTableViewController alloc] initWithNibName:nil bundle:nil];
+        // UINavigationController *navigationController = RST_CONTAIN_IN_NAVIGATION_CONTROLLER(self.romTableViewController);
+        // navigationController.transitioningDelegate = self;
+        // navigationController.modalPresentationStyle = UIModalPresentationCustom;
+        // [self presentViewController:navigationController animated:YES completion:NULL];
     }
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:NO];
 }
 
 - (id<UIViewControllerAnimatedTransitioning>)animationControllerForPresentedController:(UIViewController *)presented
                                                                   presentingController:(UIViewController *)presenting
                                                                       sourceController:(UIViewController *)source {
-    
+
     UIViewController *viewController = presented;
-    
+
     if ([viewController isKindOfClass:[UINavigationController class]])
     {
         viewController = [[(UINavigationController *)viewController viewControllers] firstObject];
     }
-    
+
     if ([viewController isKindOfClass:[GBAROMTableViewController class]])
     {
         if ([(GBAROMTableViewController *)viewController theme] == GBAThemedTableViewControllerThemeOpaque)
@@ -1717,19 +1723,19 @@ static GBAEmulationViewController *_emulationViewController;
         animator.presenting = YES;
         return animator;
     }
-    
+
     return nil;
 }
 
 - (id<UIViewControllerAnimatedTransitioning>)animationControllerForDismissedController:(UIViewController *)dismissed {
-    
+
     UIViewController *viewController = dismissed;
-    
+
     if ([viewController isKindOfClass:[UINavigationController class]])
     {
         viewController = [[(UINavigationController *)viewController viewControllers] firstObject];
     }
-    
+
     if ([viewController isKindOfClass:[GBAROMTableViewController class]])
     {
         if ([(GBAROMTableViewController *)viewController theme] == GBAThemedTableViewControllerThemeOpaque)
@@ -1749,7 +1755,7 @@ static GBAEmulationViewController *_emulationViewController;
         GBAPresentOverlayViewControllerAnimator *animator = [[GBAPresentOverlayViewControllerAnimator alloc] init];
         return animator;
     }
-    
+
     return nil;
 }
 
@@ -1762,7 +1768,7 @@ static GBAEmulationViewController *_emulationViewController;
     else
     {
         [self blurWithInitialAlpha:0.0];
-        
+
         id<UIViewControllerTransitionCoordinator> transitionCoordinatior = [self transitionCoordinator];
         [transitionCoordinatior animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
             [self setBlurAlpha:1.0];
@@ -1821,26 +1827,26 @@ static GBAEmulationViewController *_emulationViewController;
     {
         [self updateAutosaveState];
     }
-    
+
     // Only save GBC games; saving some GBA games (such as Wario Ware Twisted) can erase the save file if saved here (due to RTC emulation, I'm guessing, even though Pokemon games work fine)
     if (self.rom && self.rom.type == GBAROMTypeGBC && !self.preventSavingROMSaveData)
     {
         [[GBAEmulatorCore sharedCore] writeSaveFileForCurrentROMToDisk];
     }
-    
+
     [[GBASyncManager sharedManager] synchronize];
 }
 
 - (void)willEnterForeground:(NSNotification *)notification
 {
     // Check didBecomeActive:
-    
+
     // Only save GBC games; saving some GBA games (such as Wario Ware Twisted) can erase the save file if saved here (due to RTC emulation, I'm guessing, even though Pokemon games work fine)
     if (self.rom && self.rom.type == GBAROMTypeGBC && !self.preventSavingROMSaveData)
     {
         [[GBAEmulatorCore sharedCore] writeSaveFileForCurrentROMToDisk];
     }
-    
+
     [[GBASyncManager sharedManager] synchronize];
 }
 
@@ -1849,13 +1855,13 @@ static GBAEmulationViewController *_emulationViewController;
 - (BOOL)shouldAutorotate
 {
     BOOL pausedEmulation = self.pausedEmulation;
-    
+
     if (self.shouldResumeEmulationAfterRotatingInterface)
     {
         self.shouldResumeEmulationAfterRotatingInterface = NO;
         [self resumeEmulation];
     }
-    
+
     // Rotate if we haven't locked the orientation, and if we're either not using the gyro, or using the gyro and the emulation is paused
     return !self.interfaceOrientationLocked && (!self.usingGyroscope || (self.usingGyroscope && pausedEmulation));
 }
@@ -1866,14 +1872,14 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return UIInterfaceOrientationMaskAll;
     }
-    
+
     return UIInterfaceOrientationMaskAllButUpsideDown;
 }
 
 - (void)updateViewConstraints
 {
     [super updateViewConstraints];
-    
+
     // No way to set constraints in relation to top of superview in Interface Builder, only Top Layout Guide. Since we show and hide the status bar, this causes the emulation screen to jump
     // This way, the screen stays in place regardless of whether the status bar is showing or not
     NSArray *array = [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[screenContainerView]" options:0 metrics:0 views:@{@"screenContainerView" : self.screenContainerView}];
@@ -1889,39 +1895,39 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     UIView *controllerSnapshot = [self.controllerView snapshotViewAfterScreenUpdates:NO];
     controllerSnapshot.frame = self.controllerView.frame;
     controllerSnapshot.tag = CONTROLLER_SNAPSHOT_TAG;
     controllerSnapshot.alpha = 1.0; // Snapshots take on the alpha of snapshotted view; if the original view was 0.7, 1.0 for the snapshot view will appear as if it was 0.7
     [self.view insertSubview:controllerSnapshot aboveSubview:self.controllerView];
-    
+
     if (self.blurringContents)
     {
         self.emulatorScreen.hidden = YES;
         self.controllerView.hidden = YES;
-        
+
         UIView *blurredSnapshot = [self.blurredContentsImageView snapshotViewAfterScreenUpdates:NO];
         blurredSnapshot.frame = self.blurredContentsImageView.frame;
         blurredSnapshot.tag = BLURRED_SNAPSHOT_TAG;
         blurredSnapshot.alpha = 1.0;
-        
+
         [self.view addSubview:blurredSnapshot];
         self.blurredContentsImageView.image = [self blurredViewImageForInterfaceOrientation:toInterfaceOrientation drawController:YES];
     }
-    
+
     [self updateControllerSkinForInterfaceOrientation:toInterfaceOrientation];
-    
+
     self.controllerView.alpha = 0.0;
     //self.blurredContentsImageView.alpha = 0.0;
-    
+
     // Possible iOS 7 bug? Attempting to set this in willAnimateRotationToInterfaceOrientation:duration: simply overrides the above setting of opacity
     // This way, it is definitely animated
     [UIView animateWithDuration:duration animations:^{
         self.controllerView.alpha = 1.0;
         self.blurredContentsImageView.alpha = 1.0;
     }];
-    
+
     if (self.pausedActionSheet && [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         [self.pausedActionSheet dismissWithClickedButtonIndex:0 animated:NO];
@@ -1933,19 +1939,19 @@ static GBAEmulationViewController *_emulationViewController;
     UIView *controllerSnapshot = [self.view viewWithTag:CONTROLLER_SNAPSHOT_TAG];
     controllerSnapshot.alpha = 0.0;
     controllerSnapshot.frame = self.controllerView.frame;
-    
+
     UIView *blurredSnapshot = [self.view viewWithTag:BLURRED_SNAPSHOT_TAG];
     blurredSnapshot.alpha = 0.0;
     blurredSnapshot.frame = CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), CGRectGetHeight(self.view.bounds));
-    
+
     self.blurredContentsImageView.frame = CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), CGRectGetHeight(self.view.bounds));
-    
+
     // Doesn't seem to work as of 7.0.2; overrides setting of alpha in willRotateToInterfaceOrientation:duration:, so no animation occurs
     //self.controllerView.alpha = 1.0;
     //self.blurredControllerImageView.alpha = 1.0;
-    
+
     [self updateEmulatorScreenFrame];
-    
+
     [self updateFilter];
 }
 
@@ -1953,39 +1959,39 @@ static GBAEmulationViewController *_emulationViewController;
 {
     UIView *controllerSnapshot = [self.view viewWithTag:CONTROLLER_SNAPSHOT_TAG];
     [controllerSnapshot removeFromSuperview];
-    
+
     UIView *blurredSnapshot = [self.view viewWithTag:BLURRED_SNAPSHOT_TAG];
     [blurredSnapshot removeFromSuperview];
-    
+
     if (self.blurringContents)
     {
         self.emulatorScreen.hidden = NO;
         self.controllerView.hidden = NO;
     }
-    
+
     if (self.shouldResumeEmulationAfterRotatingInterface)
     {
         [self resumeEmulation];
     }
-    
+
     if (self.pausedActionSheet && [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         // Below code used in controllerInputDidPressPauseButton as well, except with a selectionHandler
-        
+
         CGRect rect = [self.controllerView.controllerSkin frameForMapping:GBAControllerSkinMappingMenu orientation:self.controllerView.orientation controllerDisplaySize:self.view.window.bounds.size useExtendedEdges:NO];
-        
+
         CGRect convertedRect = [self.view convertRect:rect fromView:self.controllerView];
-        
+
         CGFloat middleSectionStart = CGRectGetWidth(self.view.bounds) * (1.0/3.0);
         CGFloat middleSectionEnd = CGRectGetWidth(self.view.bounds) * (2.0/3.0);
-        
+
         // Button is in the middle third of the screen, so we make sure it centers the popup instead of putting it off to the side as it sometimes does
         if (CGRectGetMidX(convertedRect) > middleSectionStart && CGRectGetMidX(convertedRect) < middleSectionEnd)
         {
             convertedRect.origin.x = 0;
             convertedRect.size.width = self.controllerView.bounds.size.width;
         }
-        
+
         [self.pausedActionSheet showFromRect:convertedRect inView:self.view animated:YES];
     }
 }
@@ -2017,9 +2023,9 @@ static GBAEmulationViewController *_emulationViewController;
     if (self.externalController)
     {
         GBAControllerSkin *invisibleSkin = [GBAControllerSkin invisibleSkin];
-        
+
         self.controllerView.controllerSkin = invisibleSkin;
-        
+
         if (UIInterfaceOrientationIsPortrait(interfaceOrientation))
         {
             self.controllerView.orientation = GBAControllerSkinOrientationPortrait;
@@ -2028,14 +2034,14 @@ static GBAEmulationViewController *_emulationViewController;
         {
             self.controllerView.orientation = GBAControllerSkinOrientationLandscape;
         }
-        
+
         return;
     }
-    
+
     NSString *defaultSkinIdentifier = nil;
     NSString *skinsKey = nil;
     GBAControllerSkinType skinType = GBAControllerSkinTypeGBA;
-    
+
     switch (self.rom.type)
     {
         case GBAROMTypeGBA:
@@ -2043,34 +2049,34 @@ static GBAEmulationViewController *_emulationViewController;
             skinsKey = GBASettingsGBASkinsKey;
             skinType = GBAControllerSkinTypeGBA;
             break;
-            
+
         case GBAROMTypeGBC:
             defaultSkinIdentifier = [@"GBC/" stringByAppendingString:GBADefaultSkinIdentifier];
             skinsKey = GBASettingsGBCSkinsKey;
             skinType = GBAControllerSkinTypeGBC;
             break;
     }
-    
+
     if (UIInterfaceOrientationIsPortrait(interfaceOrientation))
     {
         NSString *identifier = [[NSUserDefaults standardUserDefaults] objectForKey:skinsKey][@"portrait"];
         GBAControllerSkin *controller = [GBAControllerSkin controllerSkinWithContentsOfFile:[self filepathForSkinIdentifier:identifier]];
         UIImage *image = [controller imageForOrientation:GBAControllerSkinOrientationPortrait];
-        
+
         if (image == nil)
         {
             controller = [GBAControllerSkin defaultControllerSkinForSkinType:skinType];
-            
+
             NSMutableDictionary *skins = [[[NSUserDefaults standardUserDefaults] objectForKey:skinsKey] mutableCopy];
             skins[@"portrait"] = defaultSkinIdentifier;
             [[NSUserDefaults standardUserDefaults] setObject:skins forKey:skinsKey];
         }
-        
+
         self.controllerView.controllerSkin = controller;
         self.controllerView.orientation = GBAControllerSkinOrientationPortrait;
-        
+
         BOOL translucent = [self.controllerView.controllerSkin isTranslucentForOrientation:self.controllerView.orientation];
-        
+
         if (translucent)
         {
             self.controllerView.skinOpacity = [[NSUserDefaults standardUserDefaults] floatForKey:GBASettingsControllerOpacityKey];
@@ -2079,28 +2085,28 @@ static GBAEmulationViewController *_emulationViewController;
         {
             self.controllerView.skinOpacity = 1.0f;
         }
-        
+
     }
     else
     {
         NSString *name = [[NSUserDefaults standardUserDefaults] objectForKey:skinsKey][@"landscape"];
         GBAControllerSkin *controller = [GBAControllerSkin controllerSkinWithContentsOfFile:[self filepathForSkinIdentifier:name]];
         UIImage *image = [controller imageForOrientation:GBAControllerSkinOrientationLandscape];
-        
+
         if (image == nil)
         {
             controller = [GBAControllerSkin defaultControllerSkinForSkinType:skinType];
-            
+
             NSMutableDictionary *skins = [[[NSUserDefaults standardUserDefaults] objectForKey:skinsKey] mutableCopy];
             skins[@"landscape"] = defaultSkinIdentifier;
             [[NSUserDefaults standardUserDefaults] setObject:skins forKey:skinsKey];
         }
-        
+
         self.controllerView.controllerSkin = controller;
         self.controllerView.orientation = GBAControllerSkinOrientationLandscape;
-        
+
         BOOL translucent = [self.controllerView.controllerSkin isTranslucentForOrientation:self.controllerView.orientation];
-        
+
         if (translucent)
         {
             self.controllerView.skinOpacity = [[NSUserDefaults standardUserDefaults] floatForKey:GBASettingsControllerOpacityKey];
@@ -2110,7 +2116,7 @@ static GBAEmulationViewController *_emulationViewController;
             self.controllerView.skinOpacity = 1.0f;
         }
     }
-    
+
     if ([self.controllerView.controllerSkin debug])
     {
         [self.controllerView showButtonRects];
@@ -2127,29 +2133,29 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     if (![self isAirplaying])
     {
         CGRect screenRect = [self.controllerView.controllerSkin frameForMapping:GBAControllerSkinMappingScreen orientation:self.controllerView.orientation controllerDisplaySize:self.view.bounds.size];
-        
+
         // In case we're coming back from AirPlaying
         if (![self.screenContainerView.constraints containsObject:self.screenHorizontalCenterLayoutConstraint])
         {
             [self.screenContainerView addConstraint:self.screenHorizontalCenterLayoutConstraint];
         }
-        
+
         if (![self.screenContainerView.constraints containsObject:self.screenVerticalCenterLayoutConstraint])
         {
             [self.screenContainerView addConstraint:self.screenVerticalCenterLayoutConstraint];
         }
-        
+
         if (CGRectIsEmpty(screenRect) || self.externalController)
         {
             [UIView animateWithDuration:0.4 animations:^{
                 self.screenHorizontalCenterLayoutConstraint.constant = 0;
                 self.screenVerticalCenterLayoutConstraint.constant = 0;
             }];
-            
+
             [[GBAEmulatorCore sharedCore] updateEAGLViewForSize:[self screenSizeForContainerSize:self.screenContainerView.bounds.size] screen:[UIScreen mainScreen]];
         }
         else
@@ -2158,24 +2164,24 @@ static GBAEmulationViewController *_emulationViewController;
                 CGPoint center = CGPointMake(CGRectGetMidX(self.screenContainerView.bounds), CGRectGetMidY(self.screenContainerView.bounds));
                 CGPoint screenRectCenter = CGPointMake(CGRectGetMinX(screenRect) + CGRectGetWidth(screenRect) / 2.0,
                                                        CGRectGetMinY(screenRect) + CGRectGetHeight(screenRect) / 2.0);
-                
+
                 self.screenHorizontalCenterLayoutConstraint.constant = center.x - screenRectCenter.x;
                 self.screenVerticalCenterLayoutConstraint.constant = center.y - screenRectCenter.y;
             }];
-            
+
             self.emulatorScreen.frame = screenRect;
-            
+
             [[GBAEmulatorCore sharedCore] updateEAGLViewForSize:screenRect.size screen:[UIScreen mainScreen]];
         }
     }
     else
     {
         [[GBAEmulatorCore sharedCore] updateEAGLViewForSize:[self screenSizeForContainerSize:self.airplayWindow.bounds.size] screen:self.airplayWindow.screen];
-        
+
     }
-    
+
     [self.emulatorScreen invalidateIntrinsicContentSize];
-    
+
     if (self.emulatorScreen.eaglView == nil)
     {
         self.emulatorScreen.eaglView = [[GBAEmulatorCore sharedCore] eaglView];
@@ -2184,24 +2190,24 @@ static GBAEmulationViewController *_emulationViewController;
 
 - (void)viewDidLayoutSubviews
 {
-    // possible iOS 7 bug? self.screenContainerView.bounds still has old bounds when this method is called, so we can't really do anything.    
+    // possible iOS 7 bug? self.screenContainerView.bounds still has old bounds when this method is called, so we can't really do anything.
 }
 
 - (void)refreshLayout
 {
     [self updateFilter];
-    
+
     [self updateControllerSkinForInterfaceOrientation:self.interfaceOrientation];
-    
+
     [self.view updateConstraintsIfNeeded];
     [self.view layoutIfNeeded];
-    
+
     if (self.blurringContents)
     {
         self.blurredContentsImageView.image = [self blurredViewImageForInterfaceOrientation:self.interfaceOrientation drawController:YES];
         self.blurredContentsImageView.frame = CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), CGRectGetHeight(self.view.bounds));
     }
-    
+
     if (self.rom != nil)
     {
         [self updateEmulatorScreenFrame];
@@ -2213,18 +2219,18 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)launchGameWithCompletion:(void (^)(void))completionBlock
 {
     // Now we handle switching ROMs
-    
+
     if (self.selectingSustainedButton)
     {
         [self exitSustainButtonSelectionMode];
     }
-    
+
     UIViewController *presentedViewController = self.presentedViewController;
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         [self.romTableViewController dismissViewControllerAnimated:YES completion:nil];
-        
+
         [(GBASplitViewController *)self.splitViewController hideROMTableViewControllerWithAnimation:YES];
     }
     else
@@ -2235,10 +2241,10 @@ static GBAEmulationViewController *_emulationViewController;
             [self removeBlur];
         }
     }
-        
+
     [self dismissViewControllerAnimated:YES completion:^{
         [self resumeEmulation]; // In case ROM didn't change
-        
+
         if (completionBlock)
         {
             completionBlock();
@@ -2249,15 +2255,15 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)startEmulation
 {
     [self stopEmulation]; // Stop previously running ROM
-    
+
     self.pausedEmulation = NO;
-    
+
     _romStartTime = CFAbsoluteTimeGetCurrent();
-    
+
     rst_dispatch_sync_on_main_thread(^{
         [[GBAEmulatorCore sharedCore] startEmulation];
     });
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:YES];
 }
 
@@ -2266,11 +2272,11 @@ static GBAEmulationViewController *_emulationViewController;
     rst_dispatch_sync_on_main_thread(^{
          [[GBAEmulatorCore sharedCore] endEmulation];
     });
-    
+
     self.pausedEmulation = NO;
-    
+
     [self resumeEmulation]; // In case the ROM never unpaused (just keep it here please)
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:NO];
 }
 
@@ -2282,29 +2288,29 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)pauseEmulationAndStayPaused:(BOOL)stayPaused
 {
     self.pausedEmulation = YES;
-    
+
     if (!self.stayPaused)
     {
         self.stayPaused = stayPaused;
     }
-    
+
     [self.emulatorScreen.introAnimationLayer.player pause];
-    
+
     if ([self isPlayingIntroAnimation])
     {
         return;
     }
-    
+
     // Only save GBC games; saving some GBA games (such as Wario Ware Twisted) can erase the save file if saved here (due to RTC emulation, I'm guessing, even though Pokemon games work fine)
     if (self.rom && self.rom.type == GBAROMTypeGBC && !self.preventSavingROMSaveData)
     {
         [[GBAEmulatorCore sharedCore] writeSaveFileForCurrentROMToDisk];
     }
-    
+
     rst_dispatch_sync_on_main_thread(^{
         [[GBAEmulatorCore sharedCore] pauseEmulation];
     });
-    
+
     // iOS 7 bug: dims screen immediately if it has been more than 45 seconds since last touch
    // [[UIApplication sharedApplication] setIdleTimerDisabled:NO];
 }
@@ -2315,34 +2321,34 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     self.shouldResumeEmulationAfterRotatingInterface = NO;
-    
+
     self.pausedEmulation = NO;
     self.stayPaused = NO;
-    
+
     if (self.rom == nil)
     {
         return;
     }
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:YES];
-    
+
     [self.emulatorScreen.introAnimationLayer.player play];
-    
+
     if ([self isPlayingIntroAnimation])
     {
         return;
     }
-    
+
     [[GBAEmulatorCore sharedCore] resumeEmulation];
     [[GBAEmulatorCore sharedCore] pressButtons:self.sustainedButtonSet];
-    
+
     if ([[GBALinkManager sharedManager] isLinkConnected])
     {
         [self stopFastForwarding];
     }
-    
+
     [[UIApplication sharedApplication] setIdleTimerDisabled:YES];
 }
 
@@ -2363,23 +2369,23 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)romDidSaveData:(NSNotification *)notification
 {
     GBAROM *rom = [notification object];
-    
+
     if (rom == nil)
     {
         return;
     }
-    
+
     NSData *saveData = [[NSData alloc] initWithContentsOfFile:rom.saveFileFilepath];
-    
+
     if (![self.cachedSaveData isEqualToData:saveData])
     {
         self.cachedSaveData = saveData;
-        
+
         if (![self.rom event])
         {
             [[GBASyncManager sharedManager] prepareToUploadSaveFileForROM:rom];
         }
-        
+
         DLog(@"New save data!");
     }
 }
@@ -2389,16 +2395,16 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)hasNewDropboxSaveForCurrentGameFromDropbox:(NSNotification *)notification
 {
     self.preventSavingROMSaveData = YES;
-    
+
     [[GBASyncManager sharedManager] setShouldShowSyncingStatus:YES];
-    
+
     GBASyncingDetailViewController *syncingDetailViewController = [[GBASyncingDetailViewController alloc] initWithROM:self.rom];
     syncingDetailViewController.delegate = self;
     syncingDetailViewController.showDoneButton = YES;
-    
+
     dispatch_async(dispatch_get_main_queue(), ^{
         [self prepareAndPresentViewController:syncingDetailViewController];
-        
+
         [self.rom setNewlyConflicted:NO];
     });
 }
@@ -2414,18 +2420,18 @@ static GBAEmulationViewController *_emulationViewController;
     {
         [self updateAutosaveState];
     }
-    
+
     // Restart game
     [self setRom:self.rom];
-    
+
     self.stayPaused = YES;
-    
+
     // Let the ROM run a little bit before we freeze it
     double delayInSeconds = 0.3;
     dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
     dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
         [self pauseEmulation];
-        
+
         [self refreshLayout];
     });
 }
@@ -2436,7 +2442,7 @@ static GBAEmulationViewController *_emulationViewController;
     {
         return;
     }
-    
+
     [[GBAEmulatorCore sharedCore] updateCheats];
 }
 
@@ -2453,7 +2459,7 @@ static GBAEmulationViewController *_emulationViewController;
     {
         [self pauseEmulation];
     }
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         if (self.blurringContents)
@@ -2462,27 +2468,27 @@ static GBAEmulationViewController *_emulationViewController;
         }
         else
         {
-            
+
             if (![self selectingSustainedButton])
             {
                 [self blurWithInitialAlpha:0.0];
-                
+
                 [UIView animateWithDuration:0.3 animations:^{
                     [self setBlurAlpha:1.0];
                 }];
             }
-            
+
         }
     }
-    
-    
+
+
     UINavigationController *navigationController = (UINavigationController *)viewController;
-    
+
     if (![viewController isKindOfClass:[UINavigationController class]])
     {
         navigationController = RST_CONTAIN_IN_NAVIGATION_CONTROLLER(viewController);
     }
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
@@ -2492,26 +2498,26 @@ static GBAEmulationViewController *_emulationViewController;
         [[UIApplication sharedApplication] setStatusBarStyle:UIStatusBarStyleDefault animated:NO];
         [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:UIStatusBarAnimationFade];
     }
-    
+
     UIViewController *presentingViewController = self;
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
     {
         GBASplitViewController *splitViewController = (GBASplitViewController *)self.splitViewController;
-        
+
         if ([splitViewController romTableViewControllerIsVisible])
         {
             presentingViewController = splitViewController.romTableViewController;
         }
     }
-    
+
     while (presentingViewController.presentedViewController)
     {
         presentingViewController = presentingViewController.presentedViewController;
     }
-    
+
     [presentingViewController presentViewController:navigationController animated:YES completion:NULL];
-    
+
     [self.pausedActionSheet dismissWithClickedButtonIndex:0 animated:YES];
     self.pausedActionSheet = nil;
 }
@@ -2523,7 +2529,7 @@ static GBAEmulationViewController *_emulationViewController;
     {
         presentedViewController = [[(UINavigationController *)presentedViewController viewControllers] firstObject];
     }
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
     {
         // Only hide status bar if the syncingDetailViewController was the modal view controller. If it isn't, the status bar should stay
@@ -2531,13 +2537,13 @@ static GBAEmulationViewController *_emulationViewController;
         {
             [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationFade];
         }
-        
+
         // Used primarily to update the blurring, but can't help to update everything
         [self refreshLayout];
     }
-    
+
     self.preventSavingROMSaveData = NO;
-    
+
     if (presentedViewController == dismissedViewController)
     {
         if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad)
@@ -2551,7 +2557,7 @@ static GBAEmulationViewController *_emulationViewController;
                     } completion:^(BOOL finished) {
                         [self removeBlur];
                     }];
-                    
+
                     [self resumeEmulation];
                 }
             }
@@ -2564,7 +2570,7 @@ static GBAEmulationViewController *_emulationViewController;
             }
         }
     }
-    
+
     if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPhone)
     {
         if (self.presentedViewController != self.romTableViewController.navigationController)
@@ -2586,7 +2592,7 @@ static GBAEmulationViewController *_emulationViewController;
 - (void)blurWithInitialAlpha:(CGFloat)alpha
 {
     [self.blurredContentsImageView removeFromSuperview];
-    
+
     self.blurredContentsImageView = ({
         UIImage *blurredImage = [self blurredViewImageForInterfaceOrientation:self.interfaceOrientation drawController:YES];
         UIImageView *imageView = [[UIImageView alloc] initWithImage:blurredImage];
@@ -2600,18 +2606,18 @@ static GBAEmulationViewController *_emulationViewController;
         [self.view addSubview:imageView];
         imageView;
     });
-    
+
     [self.view addSubview:self.blurredContentsImageView];
-    
+
     self.blurringContents = YES;
 }
 
 - (void)removeBlur
 {
     self.blurringContents = NO;
-    
+
     self.controllerView.hidden = NO;
-    
+
     [self.blurredContentsImageView removeFromSuperview];
     self.blurredContentsImageView = nil;
 }
@@ -2627,14 +2633,14 @@ static GBAEmulationViewController *_emulationViewController;
     CGSize viewSize = [[[UIApplication sharedApplication] delegate] window].bounds.size;
     NSString *userDefaultsSkinOrientation = nil;
     GBAControllerSkinOrientation skinOrientation = GBAControllerSkinOrientationPortrait;
-    
+
     if (UIInterfaceOrientationIsPortrait(interfaceOrientation))
     {
         if (viewSize.width > viewSize.height)
         {
             viewSize = CGSizeMake(viewSize.height, viewSize.width);
         }
-        
+
         userDefaultsSkinOrientation = @"portrait";
         skinOrientation = GBAControllerSkinOrientationPortrait;
     }
@@ -2644,14 +2650,14 @@ static GBAEmulationViewController *_emulationViewController;
         {
             viewSize = CGSizeMake(viewSize.height, viewSize.width);
         }
-        
+
         userDefaultsSkinOrientation = @"landscape";
         skinOrientation = GBAControllerSkinOrientationLandscape;
     }
-    
+
     GBAControllerSkin *controllerSkin = nil;
     UIImage *controllerSkinImage = nil;
-    
+
     if (self.externalController)
     {
         controllerSkin = [GBAControllerSkin invisibleSkin];
@@ -2662,7 +2668,7 @@ static GBAEmulationViewController *_emulationViewController;
         NSString *defaultSkinIdentifier = nil;
         NSString *skinsKey = nil;
         GBAControllerSkinType skinType = GBAControllerSkinTypeGBA;
-        
+
         switch (self.rom.type)
         {
             case GBAROMTypeGBA:
@@ -2670,47 +2676,47 @@ static GBAEmulationViewController *_emulationViewController;
                 skinsKey = GBASettingsGBASkinsKey;
                 skinType = GBAControllerSkinTypeGBA;
                 break;
-                
+
             case GBAROMTypeGBC:
                 defaultSkinIdentifier = [@"GBC/" stringByAppendingString:GBADefaultSkinIdentifier];
                 skinsKey = GBASettingsGBCSkinsKey;
                 skinType = GBAControllerSkinTypeGBC;
                 break;
         }
-        
+
         NSString *name = [[NSUserDefaults standardUserDefaults] objectForKey:skinsKey][userDefaultsSkinOrientation];
-        
+
         controllerSkin = [GBAControllerSkin controllerSkinWithContentsOfFile:[self filepathForSkinIdentifier:name]];
         controllerSkinImage = [controllerSkin imageForOrientation:skinOrientation];
-        
+
         if (controllerSkinImage == nil)
         {
             controllerSkin = [GBAControllerSkin defaultControllerSkinForSkinType:skinType];
-            
+
             NSMutableDictionary *skins = [[[NSUserDefaults standardUserDefaults] objectForKey:skinsKey] mutableCopy];
             skins[userDefaultsSkinOrientation] = defaultSkinIdentifier;
             [[NSUserDefaults standardUserDefaults] setObject:skins forKey:skinsKey];
-            
+
             controllerSkinImage = [controllerSkin imageForOrientation:skinOrientation];
         }
     }
-    
+
     CGFloat controllerAlpha = 1.0f;
     if ([controllerSkin isTranslucentForOrientation:skinOrientation])
     {
         controllerAlpha = [[NSUserDefaults standardUserDefaults] floatForKey:GBASettingsControllerOpacityKey];
     }
-    
+
     CGSize controllerDisplaySize = [controllerSkin frameForMapping:GBAControllerSkinMappingControllerImage orientation:skinOrientation controllerDisplaySize:viewSize].size;
     CGSize screenContainerSize = CGSizeZero;
     CGRect controllerRect = CGRectZero;
-    
+
     CGSize screenSize = [self screenSizeForContainerSize:viewSize];
-    
+
     if (UIInterfaceOrientationIsPortrait(interfaceOrientation))
     {
         screenContainerSize = CGSizeMake(viewSize.width, viewSize.height - controllerDisplaySize.height);
-        
+
         controllerRect = CGRectMake((viewSize.width - controllerDisplaySize.width) / 2.0f,
                                  screenContainerSize.height,
                                  controllerDisplaySize.width,
@@ -2719,20 +2725,20 @@ static GBAEmulationViewController *_emulationViewController;
     else
     {
         screenContainerSize = CGSizeMake(viewSize.width, viewSize.height);
-        
+
         controllerRect = CGRectMake((screenContainerSize.width - controllerDisplaySize.width) / 2.0,
                                  0,
                                  controllerDisplaySize.width,
                                  controllerDisplaySize.height);
     }
-    
+
 
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(viewSize.width, viewSize.height), YES, 0.5);
-    
+
     if (self.emulatorScreen.eaglView && ![self isAirplaying]) // As of iOS 7.0.3 crashes when attempting to draw the empty emulatorScreen
     {
         CGRect screenRect = [controllerSkin frameForMapping:GBAControllerSkinMappingScreen orientation:skinOrientation controllerDisplaySize:viewSize];
-        
+
         if (CGRectIsEmpty(screenRect) || self.externalController)
         {
             [self.emulatorScreen drawViewHierarchyInRect:CGRectMake((screenContainerSize.width - screenSize.width) / 2.0,
@@ -2745,15 +2751,15 @@ static GBAEmulationViewController *_emulationViewController;
             [self.emulatorScreen drawViewHierarchyInRect:screenRect afterScreenUpdates:NO];
         }
     }
-    
+
     if (drawController)
     {
         [controllerSkinImage drawInRect:controllerRect blendMode:kCGBlendModeNormal alpha:controllerAlpha];
     }
-    
+
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    
+
     UIColor *tintColor = [UIColor colorWithWhite:0.11 alpha:0.73];
     return [image applyBlurWithRadius:10 tintColor:tintColor saturationDeltaFactor:1.8 maskImage:nil];
 }
@@ -2767,58 +2773,58 @@ static GBAEmulationViewController *_emulationViewController;
     {
         [[GBAEmulatorCore sharedCore] writeSaveFileForCurrentROMToDisk];
     }
-        
+
     _rom = rom;
-    
+
     self.usingGyroscope = NO;
-    
+
     self.cachedSaveData = [[NSData alloc] initWithContentsOfFile:rom.saveFileFilepath];
-    
+
     // Changing ROM should be done on main thread
     rst_dispatch_sync_on_main_thread(^{
-        
+
         [self refreshLayout]; // Must go before resumeEmulation
-        
+
         if (_rom) // If there was a previous ROM make sure to unpause it!
         {
             [self resumeEmulation];
         }
-        
+
         [self updateFilter];
-        
+
         [self stopFastForwarding];
-        
+
         NSSet *sustainedButtons = [self.sustainedButtonSet copy];
         self.sustainedButtonSet = nil;
-        
+
         [[GBAEmulatorCore sharedCore] releaseButtons:sustainedButtons];
         [[GBAEmulatorCore sharedCore] setRom:self.rom];
-        
+
         if (rom)
         {
             [self startEmulation];
-            
+
             if ([[NSUserDefaults standardUserDefaults] boolForKey:GBASettingsIntroAnimationKey])
             {
                 [self pauseEmulation];
                 [self playIntroAnimation];
-                
+
                 if (self.showingGyroscopeAlert)
                 {
                     [self pauseEmulation];
                 }
-                
+
             }
         }
         else
         {
             [self stopEmulation];
-            
+
             self.emulatorScreen.eaglView = nil;
-            
+
             [self refreshLayout];
         }
-        
+
         [self updateFilter];
     });
 }
